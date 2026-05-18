@@ -1,5 +1,12 @@
+import numpy as np
+
+from .sequential_monte_carlo import WeightedParticles
+
+
 class PsychometricModel(ABC):
-    def __init__(self, prior_params): # TODO: talk to Swantje to check how to pass distributions the best
+    def __init__(
+        self, prior_params
+    ):  # TODO: talk to Swantje to check how to pass distributions the best
         self.prior_params = prior_params
 
     @abstractmethod
@@ -9,17 +16,22 @@ class PsychometricModel(ABC):
     @abstractmethod
     def log_likelihood(self, X, reponses, fct_params):
         pass
-     
+
+    def sample_prior(self, n_samples) -> np.ndarray:
+        pass
+
 
 class LogisticRegressionWithLapses(PsychometricModel):
-    def __init__(self, n_dims, priors): # TODO: talk to Swantje to check how to pass distributions the best
+    def __init__(
+        self, n_dims, priors
+    ):  # TODO: talk to Swantje to check how to pass distributions the best
         super().__init__()
         self.n_dims = n_dims
         # TODO: do we want the priors here or params for the priors instead?
         #       also: checks to see if the order fits what we expect (lapses have
         #       other priors than other parameters). If we decide to use params here
         #       we have to adapt the base class.
-        self.trans_prop = trans_prop # TODO: look up what the trans_prop should be
+        self.trans_prop = trans_prop  # TODO: look up what the trans_prop should be
         self.priors = priors
 
     @staticmethod
@@ -58,4 +70,33 @@ class LogisticRegressionWithLapses(PsychometricModel):
     #     x, responses = data
     #     x = np.hstack([1, x])
     #     return LogisticLapseRegressionLikelihood.likelihood(x, responses, locations)
-        
+
+    def sample_prior(self, n_samples) -> np.ndarray:
+        def initialize_posteriors(
+            priors, trans_prop, n_particles
+        ):  # some function that samples the first particles from priors
+            rng = np.random.default_rng(seed)
+            # sample from prior to initialize particles
+            prior_samples = []
+            only_one = True
+            for i, prior in enumerate(priors):
+                if i != len(priors) - 1:
+                    new_samples = prior.rvs(size=n_particles, random_state=seed)
+                    if trans_prop:
+                        new_samples = new_samples.clip(
+                            trans_prop.lower_bounds[i], trans_prop.upper_bounds[i]
+                        )
+                    prior_samples = prior_samples + [new_samples.tolist()]
+                    only_one = False
+                else:
+                    if only_one:
+                        prior_samples = prior.rvs(size=n_particles, random_state=seed)
+                        break
+                    prior_samples = np.array(prior_samples).T
+                    prior_samples = np.hstack(
+                        [prior_samples, prior.rvs(size=n_particles, random_state=seed)]
+                    )
+            # if initial_particles is None:
+            particles = WeightedParticles(prior_samples)
+            logging.info("Initialized particles from priors.")
+            return particles
