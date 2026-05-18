@@ -13,7 +13,9 @@ from .sequential_monte_carlo import WeightedParticles
 class BinaryPsychometricModel(ABC):
     def __init__(self, seed=None):
         self.priors: dict[str, rv_frozen] = ...
-        self.trans_prop = None # optional if transforms for distributions should be used
+        self.trans_prop = (
+            None  # optional if transforms for distributions should be used
+        )
         self.seed = seed
 
     @abstractmethod
@@ -63,9 +65,7 @@ class BinaryPsychometricModel(ABC):
 
 
 class LogisticRegressionWithLapses(BinaryPsychometricModel):
-    def __init__(
-        self, n_dims, seed=None
-    ):  # TODO: talk to Swantje to check how to pass distributions the best
+    def __init__(self, n_dims, seed=None):
         super().__init__()
         self.n_dims = n_dims
         self.trans_prop = IntervalTransformIndependentGaussianProposer(
@@ -100,3 +100,8 @@ class LogisticRegressionWithLapses(BinaryPsychometricModel):
 
     def sample_prior(self, n_samples) -> np.ndarray:
         return super().sample_prior(self, n_samples)
+
+    def log_prior(
+        self, samples
+    ):  # TODO return log prior for each of the samples (each sample is a particle (vector of parameters))
+        pass
