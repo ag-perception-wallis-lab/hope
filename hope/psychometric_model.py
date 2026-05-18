@@ -17,9 +17,13 @@ class PsychometricModel(ABC):
     def log_likelihood(self, X, reponses, fct_params):
         pass
 
-    def sample_prior(self, n_samples) -> np.ndarray:
+    def sample_prior(self, n_samples) -> np.ndarray:  # TODO
         pass
 
+    def log_prior(
+        self, samples
+    ):  # TODO return log prior for each of the samples (each sample is a particle (vector of parameters))
+        pass
 
 class LogisticRegressionWithLapses(PsychometricModel):
     def __init__(
@@ -100,3 +104,8 @@ class LogisticRegressionWithLapses(PsychometricModel):
             particles = WeightedParticles(prior_samples)
             logging.info("Initialized particles from priors.")
             return particles
+
+    def log_prior(
+        self, samples
+    ):  # TODO return log prior for each of the samples (each sample is a particle (vector of parameters))
+        pass
