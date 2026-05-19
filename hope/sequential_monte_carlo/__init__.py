@@ -15,10 +15,4 @@ from .sequential_monte_carlo import (
     mutual_information,
     n_eff,
 )
-from .wasserstein_distance import (
-    gaussian_wasserstein_distance,
-    remove_sampling_bias,
-    visualize_wasserstein_distances,
-    wasserstein_distance_to_reference,
-)
 from .weighted_particles import ParticleArray as WeightedParticles

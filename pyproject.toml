@@ -15,5 +15,6 @@ Issues = "https://github.com/ag-perception-wallis-lab/hope/issues"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.2.0",
     "ruff>=0.15.13",
 ]

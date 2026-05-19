@@ -2,8 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
+from debugpy.common.timestamp import current
+from mpmath.ctx_iv import new
 from scipy.stats._distn_infrastructure import rv_frozen
 from scipy.stats._multivariate import multi_rv_frozen
+from torch.accelerator import current_accelerator
+from triton.language import trans
 
 from hope.sequential_monte_carlo import (
     IntervalTransformIndependentGaussianProposer,
@@ -66,7 +70,11 @@ class BinaryPsychometricModel(PsychometricModel):
             if self.bounds is not None and parameter_key in self.bounds:
                 lower_bound, upper_bound = self.bounds[parameter_key]
             else:
-                lower_bound, upper_bound = self.priors[parameter_key].support()
+                prior = self.priors[parameter_key]
+                if hasattr(prior, "support"):
+                    lower_bound, upper_bound = prior.support()
+                else:
+                    lower_bound, upper_bound = -np.inf, np.inf
             if np.isfinite(lower_bound) and np.isfinite(upper_bound):
                 if prior_dims[i] == 1:
                     bounded_dims.append(dim_count - 1)
@@ -99,25 +107,43 @@ class BinaryPsychometricModel(PsychometricModel):
         return log_likelihoods
 
     def sample_prior(self, n_samples) -> np.ndarray:
-        prior_samples = []
-        only_one = True
+        prior_samples = np.empty((n_samples, sum(self.prior_dims)))
+        # for i, prior in enumerate(self.priors.values()):
+        #     if i != len(self.priors) - 1:
+        #         new_samples = prior.rvs(size=n_samples, random_state=self.seed)
+        #         if self.trans_prop:
+        #             new_samples = new_samples.clip(
+        #                 self.trans_prop.lower_bounds[i], self.trans_prop.upper_bounds[i]
+        #             )
+        #         prior_samples = prior_samples + [new_samples.tolist()]
+        #         only_one = False
+        #     else:
+        #         if only_one:
+        #             prior_samples = prior.rvs(size=n_samples, random_state=self.seed)
+        #             break
+        #         prior_samples = np.array(prior_samples).T
+        #         prior_samples = np.hstack(
+        #             [prior_samples, prior.rvs(size=n_samples, random_state=self.seed)]
+        #         )
+        if self.trans_prop:
+            bounded_dims = self.trans_prop.transformed_dimensions
+        current_dim = 0
+        bounded_count = 0
         for i, prior in enumerate(self.priors.values()):
-            if i != len(self.priors) - 1:
-                new_samples = prior.rvs(size=n_samples, random_state=self.seed)
-                if self.trans_prop:
-                    new_samples = new_samples.clip(
-                        self.trans_prop.lower_bounds[i], self.trans_prop.upper_bounds[i]
-                    )
-                prior_samples = prior_samples + [new_samples.tolist()]
-                only_one = False
-            else:
-                if only_one:
-                    prior_samples = prior.rvs(size=n_samples, random_state=self.seed)
-                    break
-                prior_samples = np.array(prior_samples).T
-                prior_samples = np.hstack(
-                    [prior_samples, prior.rvs(size=n_samples, random_state=self.seed)]
+            new_samples = prior.rvs(size=n_samples, random_state=self.seed)
+            current_dim += self.prior_dims[i]
+            if current_dim in bounded_dims and self.trans_prop is not None:
+                new_samples = new_samples.clip(
+                    self.trans_prop.lower_bounds[bounded_count],
+                    self.trans_prop.upper_bounds[bounded_count],
                 )
+                bounded_count += 1
+            prior_samples[:, current_dim - self.prior_dims[i] : current_dim] = (
+                new_samples.reshape(n_samples, -1)
+                if self.prior_dims[i] > 1
+                else new_samples[:, np.newaxis]
+            )
+
         return prior_samples
 
     def log_prior(self, samples):

@@ -36,11 +36,9 @@ class HopeSampler:
         self.stimulus_pool = stimulus_pool  # all stimuli
         self.X = stimulus_pool  # current stimulus pool; might change if we sample without replacement
         self.replace_after_trials = replace_after_trials
-
-        # TODO: initial particles should not be here anymore now?
         self.n_particles = n_particles
         self.particles = WeightedParticles(
-            self.psychometric_model.sample_prior(n_particles)
+            np.array(self.psychometric_model.sample_prior(n_particles))
         )
         self.sampled = []
         self.responses = []
@@ -51,7 +49,7 @@ class HopeSampler:
             self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials
         ):  # TODO catch stimulus pool empty error
             self.X = self.stimulus_pool.copy()
-        probs = self.psychometric_model.likelihood(self.X, self.particles)
+        probs = self.psychometric_model.psychometric_function(self.X, self.particles)
         next = np.argmax(mutual_information(probs))
         stimulus = self.X[next]
         self.X = np.delete(self.X, next, axis=0)
@@ -64,7 +62,7 @@ class HopeSampler:
             self.particles.locations,
             self.particles.weights,
             [stimulus, response],
-            self.psychometric_model.likelihood_importance_reweighting_wrapper,
+            self.psychometric_model.likelihood,
         )
         self.particles.importance_resampling(method="stratified", rng=self.rng)
 
