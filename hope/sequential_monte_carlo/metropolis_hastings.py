@@ -8,6 +8,7 @@ from scipy import stats
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 from .sequential_monte_carlo import n_eff
+from .utils import bounded_logit, bounded_sigmoid
 
 
 def adapt_proposal_width_factor(
@@ -239,3 +240,81 @@ def metropolis_hastings_step(
     acceptance_prob = np.sum(accept) / len(accept)
     new_samples = proposals[indices_of_updated_samples]
     return new_samples, indices_of_updated_samples, acceptance_prob
+
+class IntervalTransformIndependentGaussianProposer(TransformProposer):
+    """
+    Transforms all the given dimenions of the samples into a given interval by
+    doing a sigmoidal transformation and accounts for that in the computation of
+    the logpdf of the samples and proposals. Proposals are done in an
+    independent Gaussian way (in the transformed space) with variances passed at
+    initialization.
+    """
+
+    # transformation applied to (some dimensions of the) samples before
+    # proposing
+    _transformation = bounded_sigmoid
+    # transformation applied to (some dimensions of the) proposals to get back
+    # into original space
+    _inverse_transformation = bounded_logit
+
+    def __init__(
+        self,
+        transformed_dimensions,
+        lower_bounds,
+        upper_bounds,
+        proposal_vars=None,
+    ):
+        self.transformed_dimensions = transformed_dimensions
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
+        self.proposal_vars = proposal_vars
+
+    def transform(self, samples):
+        _samples = np.copy(samples)
+        _samples[..., self.transformed_dimensions] = bounded_logit(
+            x=_samples[..., self.transformed_dimensions],
+            lower_bound=self.lower_bounds,
+            upper_bound=self.upper_bounds,
+        )
+        return _samples
+
+    def backtransform(self, samples):
+        _samples = np.copy(samples)
+        _samples[..., self.transformed_dimensions] = bounded_sigmoid(
+            _samples[..., self.transformed_dimensions],
+            self.lower_bounds,
+            self.upper_bounds,
+        )
+        return _samples
+
+    # should not be needed
+    # def jacobian_det_backtransform(self, x):
+    #     a = self.lower_bounds
+    #     b = self.upper_bounds
+    #     return np.sum(np.abs(np.exp(x) * (b - a) / (np.exp(x) + 1) ** 2), axis=1)
+
+    def log_jacobian_det_transform(self, x):
+        a = self.lower_bounds
+        b = self.upper_bounds
+        return np.sum(np.log(np.abs((b - a) / ((x - a) * (b - x) + 1e-50))), axis=1)
+
+    def propose(self, samples, rng=None):
+        if not rng:
+            rng = np.random.default_rng()
+        transformed_samples = self.transform(samples)
+        torch.manual_seed(rng.integers(0, 2**32 - 1))
+        mvn = MultivariateNormal(
+            loc=torch.from_numpy(transformed_samples),
+            covariance_matrix=torch.from_numpy(np.diag(self.proposal_vars)),
+        )
+        transformed_proposals = mvn.sample()
+        proposals = self.backtransform(transformed_proposals)
+        # it's the same in both directions so we can reuse it
+        _logpdf = mvn.log_prob(transformed_proposals).numpy()
+        proposal_logpdf = _logpdf + self.log_jacobian_det_transform(
+            proposals[..., self.transformed_dimensions]
+        )
+        sample_logpdf = _logpdf + self.log_jacobian_det_transform(
+            samples[..., self.transformed_dimensions]
+        )
+        return proposals, proposal_logpdf, sample_logpdf

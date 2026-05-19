@@ -1,27 +1,66 @@
-from abc import ABC, abstractmethod
-import math
-from typing import Dict
+from typing import Callable, Dict, Optional, Union
 
 import numpy as np
-from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
-from scipy.special import expit
+from scipy.stats._multivariate import multi_rv_frozen
 
-from .sequential_monte_carlo import WeightedParticles
+from hope.sequential_monte_carlo import (
+    IntervalTransformIndependentGaussianProposer,
+)
 
 
-class BinaryPsychometricModel(ABC):
-    def __init__(self, seed=None):
-        self.priors: dict[str, rv_frozen] = ...
-        self.trans_prop = (
-            None  # optional if transforms for distributions should be used
-        )
+class BinaryPsychometricModel:
+    psychometric_function: Callable
+    priors: Dict[str, Union[rv_frozen, multi_rv_frozen]]
+    trans_prop: Optional[IntervalTransformIndependentGaussianProposer]
+    bounds: Optional[Dict[str, tuple]]
+    seed: Optional[int]
+
+    def __init__(
+        self,
+        psychometric_function: Callable,
+        priors: Dict[str, rv_frozen],
+        bounds: Optional[
+            Dict[str, tuple]
+        ] = None,  # TODO if none bounds of priors will be used
+        seed: Optional[int] = None,
+    ):
+        if bounds is not None and not set(bounds).issubset(priors):
+            raise ValueError("Keys of bounds must be a subset of prior keys")
+        self.priors: dict[str, rv_frozen] = priors
+        self.bounds = bounds
+        self._init_trans_prop()
         self.seed = seed
 
-    @abstractmethod
-    def psychometric_fuction(self, X, fct_params):
-        # Define this function in your own class!
-        pass
+        self.psychometric_function = psychometric_function
+
+    def _init_trans_prop(self):
+        prior_dims = [
+            np.atleast_1d(prior.rvs()).shape[0] for prior in self.priors.values()
+        ]
+        self.prior_dims = prior_dims
+        bounded_dims = []
+        dim_count = 0
+        lower_bounds, upper_bounds = [], []
+        for i, parameter_key in enumerate(self.priors.keys()):
+            dim_count += prior_dims[i]
+            if self.bounds is not None and parameter_key in self.bounds:
+                lower_bound, upper_bound = self.bounds[parameter_key]
+            else:
+                lower_bound, upper_bound = self.priors[parameter_key].support()
+            if np.isfinite(lower_bound) and np.isfinite(upper_bound):
+                if prior_dims[i] == 1:
+                    bounded_dims.append(dim_count - 1)
+                    lower_bounds.append(lower_bound)
+                    upper_bounds.append(upper_bound)
+                else:
+                    raise NotImplementedError(
+                        "Truncated multivariate distributions are not yet implemented"
+                    )
+        if len(bounded_dims) > 0:
+            self.trans_prop = IntervalTransformIndependentGaussianProposer(
+                bounded_dims, lower_bounds, upper_bounds
+            )
 
     def likelihood(self, X, responses, fct_params):
         p = self.psychometric_function(X, fct_params)
@@ -60,48 +99,12 @@ class BinaryPsychometricModel(ABC):
                 prior_samples = np.hstack(
                     [prior_samples, prior.rvs(size=n_samples, random_state=self.seed)]
                 )
-        particles = WeightedParticles(prior_samples)
-        return particles
+        return prior_samples
 
-
-class LogisticRegressionWithLapses(BinaryPsychometricModel):
-    def __init__(self, n_dims, seed=None):
-        super().__init__()
-        self.n_dims = n_dims
-        self.trans_prop = IntervalTransformIndependentGaussianProposer(
-            [0, 1], np.array([0, 0.8]), np.array([0.2, 1])
-        )
-        prior = stats.multivariate_normal(
-            mean=np.zeros(self.n_dims), variance=3, seed=seed
-        )
-        self.priors = {
-            "lower_lapse": stats.beta(1, 30),
-            "upper_lapse": stats.beta(1, 30),
-            "weights": prior,
-            "bias": stats.norm(scale=math.sqrt(3), seed=seed),
-        }
-
-    def psychometric_function(self, X, fct_params):
-        if X.size == 1 and X.ndim <= 1:
-            X = X.reshape((1, 1))
-        if X.ndim == 1:
-            X = np.expand_dims(X, axis=0)
-        a = fct_params[:, 0]
-        k = fct_params[:, 1]
-        s = expit(fct_params[:, 2:] @ X.T)
-        p = a + (k - a) * s
-        return p
-
-    def likelihood(self, X, responses, fct_params):
-        return super().likelihood(self, X, responses, fct_params)
-
-    def log_likelihood(self, X, responses, fct_params):
-        return super().log_likelihood(self, X, responses, fct_params)
-
-    def sample_prior(self, n_samples) -> np.ndarray:
-        return super().sample_prior(self, n_samples)
-
-    def log_prior(
-        self, samples
-    ):  # TODO return log prior for each of the samples (each sample is a particle (vector of parameters))
-        pass
+    def log_prior(self, samples):
+        log_prior = 0
+        dims = 0
+        for i, prior in enumerate(self.priors.values()):
+            log_prior += prior.logpdf(samples[:, dims : dims + self.prior_dims[i]])
+            dims += self.prior_dims[i]
+        return log_prior

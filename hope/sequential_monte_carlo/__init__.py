@@ -1,4 +1,5 @@
 from .metropolis_hastings import (
+    IntervalTransformIndependentGaussianProposer,
     adapt_proposal_width_factor,
     metropolis_hastings_step,
     metropolis_step,
