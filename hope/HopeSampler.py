@@ -1,6 +1,7 @@
 import numpy as np
 
 from hope.psychometric_model import PsychometricModel
+import logging
 
 from .sequential_monte_carlo import (
     WeightedParticles,
@@ -14,6 +15,7 @@ from .sequential_monte_carlo import (
 )
 
 __all__ = ["HopeSampler"]
+logger = logging.getLogger(__file__)
 
 
 # TODO: Think about loading previous HopeSampler
@@ -35,7 +37,15 @@ class HopeSampler:
         self.n_mh = n_mh
         self.stimulus_pool = stimulus_pool  # all stimuli
         self.X = stimulus_pool  # current stimulus pool; might change if we sample without replacement
-        self.replace_after_trials = replace_after_trials
+        if replace_after_trials > self.stimulus_pool.shape[0]:
+            self.replace_after_trials = self.stimulus_pool.shape[0]
+            warning_str = ("The value for replace_after_trials is bigger than the"
+                           "stimulus_pool size. To avoid drawing from an empty "
+                           "stimulus pool, replace_after_trials was set to the "
+                           "stimulus_pool size.")
+            logger.warning(warning_str)
+        else:
+            self.replace_after_trials = replace_after_trials
 
         # TODO: initial particles should not be here anymore now?
         self.n_particles = n_particles
@@ -46,10 +56,25 @@ class HopeSampler:
         self.responses = []
 
     def get_next_stimulus(self):
-        # TODO add documentation about sampling with replacement and without replacement and how the stimulus pool is handled in both cases
+        """Computes and returns the stimulus in the current stimulus pool that
+        minimizes the expected entropy.
+
+        If replace_after_trials is set to a value bigger than 1 and the current
+        stimulus pool size is bigger than the original stimulus pool size minus
+        replace_after_trials, the selected stimulus is drawn from the pool without
+        replacement. Once the difference between the current stimulus pool size and
+        the original one has reached replace_after_trials, all stimuli are put back in
+        the pool. If replace_after_trials equals 1, stimuli are always drawn with
+        replacement.
+
+        Returns
+        -------
+        np.ndarray
+            Stimulus in the current stimulus pool, that minimizes the expected entropy.
+        """
         if (
             self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials
-        ):  # TODO catch stimulus pool empty error
+        ):
             self.X = self.stimulus_pool.copy()
         probs = self.psychometric_model.likelihood(self.X, self.particles)
         next = np.argmax(mutual_information(probs))
