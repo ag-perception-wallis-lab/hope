@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
@@ -9,13 +10,31 @@ from hope.sequential_monte_carlo import (
 )
 
 
-class BinaryPsychometricModel:
+class PsychometricModel(ABC):
     psychometric_function: Callable
     priors: Dict[str, Union[rv_frozen, multi_rv_frozen]]
     trans_prop: Optional[IntervalTransformIndependentGaussianProposer]
     bounds: Optional[Dict[str, tuple]]
     seed: Optional[int]
 
+    @abstractmethod
+    def likelihood(self, X, responses, fct_params):
+        pass
+
+    @abstractmethod
+    def log_likelihood(self, X, responses, fct_params):
+        pass
+
+    @abstractmethod
+    def sample_prior(self, n_samples) -> np.ndarray:
+        pass
+
+    @abstractmethod
+    def log_prior(self, samples):
+        pass
+
+
+class BinaryPsychometricModel(PsychometricModel):
     def __init__(
         self,
         psychometric_function: Callable,
