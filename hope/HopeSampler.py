@@ -81,6 +81,17 @@ class HopeSampler:
         stimulus = self.X[next]
         self.X = np.delete(self.X, next, axis=0)
         return stimulus
+    
+    def update_stimulus_pool(self, new_stimulus_pool):
+        self.stimulus_pool = new_stimulus_pool
+        if self.replace_after_trials > self.stimulus_pool.shape[0]:
+            self.replace_after_trials = self.stimulus_pool.shape[0]
+            warning_str = ("The value for replace_after_trials is bigger than the"
+                           "stimulus_pool size. To avoid drawing from an empty "
+                           "stimulus pool, replace_after_trials was set to the "
+                           "stimulus_pool size.")
+            logger.warning(warning_str)
+
 
     def update_posterior(self, stimulus, response):
         self.sampled.append(stimulus)
