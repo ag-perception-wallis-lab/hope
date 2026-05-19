@@ -23,7 +23,7 @@ class HopeSampler:
     def __init__(
         self,
         psychometric_model: PsychometricModel,
-        stimulus_pool: np.ndarray,  # TODO stimulus pool --> should we add other option with range with min and max?
+        stimulus_pool: np.ndarray,  
         n_particles: int,
         n_mh: int,
         proposal_dist=None,  # TODO document default proposal distribution
