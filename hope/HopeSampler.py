@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 
 from hope.psychometric_model import PsychometricModel
@@ -23,7 +25,7 @@ class HopeSampler:
     def __init__(
         self,
         psychometric_model: PsychometricModel,
-        stimulus_pool: np.ndarray,  
+        stimulus_pool: np.ndarray,
         n_particles: int,
         n_mh: int,
         proposal_dist=None,  # TODO document default proposal distribution
@@ -39,10 +41,12 @@ class HopeSampler:
         self.X = stimulus_pool  # current stimulus pool; might change if we sample without replacement
         if replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
-            warning_str = ("The value for replace_after_trials is bigger than the"
-                           "stimulus_pool size. To avoid drawing from an empty "
-                           "stimulus pool, replace_after_trials was set to the "
-                           "stimulus_pool size.")
+            warning_str = (
+                "The value for replace_after_trials is bigger than the"
+                "stimulus_pool size. To avoid drawing from an empty "
+                "stimulus pool, replace_after_trials was set to the "
+                "stimulus_pool size."
+            )
             logger.warning(warning_str)
         else:
             self.replace_after_trials = replace_after_trials
@@ -72,26 +76,25 @@ class HopeSampler:
         np.ndarray
             Stimulus in the current stimulus pool, that minimizes the expected entropy.
         """
-        if (
-            self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials
-        ):
+        if self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials:
             self.X = self.stimulus_pool.copy()
         probs = self.psychometric_model.likelihood(self.X, self.particles)
         next = np.argmax(mutual_information(probs))
         stimulus = self.X[next]
         self.X = np.delete(self.X, next, axis=0)
         return stimulus
-    
+
     def update_stimulus_pool(self, new_stimulus_pool):
         self.stimulus_pool = new_stimulus_pool
         if self.replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
-            warning_str = ("The value for replace_after_trials is bigger than the"
-                           "stimulus_pool size. To avoid drawing from an empty "
-                           "stimulus pool, replace_after_trials was set to the "
-                           "stimulus_pool size.")
+            warning_str = (
+                "The value for replace_after_trials is bigger than the"
+                "stimulus_pool size. To avoid drawing from an empty "
+                "stimulus pool, replace_after_trials was set to the "
+                "stimulus_pool size."
+            )
             logger.warning(warning_str)
-
 
     def update_posterior(self, stimulus, response):
         self.sampled.append(stimulus)
@@ -164,3 +167,12 @@ class HopeSampler:
         proposal_width_factor = adapt_proposal_width_factor(
             proposal_width_factor, acceptance_probs
         )
+
+    def save(self, path: str) -> None:
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, path: str) -> HopeSampler:
+        with open(path, "rb") as f:
+            return pickle.load(f)
