@@ -2,12 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
-from debugpy.common.timestamp import current
-from mpmath.ctx_iv import new
 from scipy.stats._distn_infrastructure import rv_frozen
 from scipy.stats._multivariate import multi_rv_frozen
-from torch.accelerator import current_accelerator
-from triton.language import trans
 
 from hope.sequential_monte_carlo import (
     IntervalTransformIndependentGaussianProposer,
@@ -86,7 +82,7 @@ class BinaryPsychometricModel(PsychometricModel):
                     )
         if len(bounded_dims) > 0:
             self.trans_prop = IntervalTransformIndependentGaussianProposer(
-                bounded_dims, lower_bounds, upper_bounds
+                bounded_dims, np.array(lower_bounds), np.array(upper_bounds)
             )
 
     def likelihood(self, X, responses, fct_params):
@@ -102,8 +98,8 @@ class BinaryPsychometricModel(PsychometricModel):
         p = self.psychometric_function(X, fct_params)
         log_likelihoods = np.sum(
             np.log(np.where(responses, p, 1) * np.where(1 - responses, 1 - p, 1)),
-            axis=1,
-        )
+            axis=2,
+        ).flatten()
         return log_likelihoods
 
     def sample_prior(self, n_samples) -> np.ndarray:
@@ -147,9 +143,11 @@ class BinaryPsychometricModel(PsychometricModel):
         return prior_samples
 
     def log_prior(self, samples):
-        log_prior = 0
+        log_prior = np.zeros(samples.shape[0])
         dims = 0
         for i, prior in enumerate(self.priors.values()):
-            log_prior += prior.logpdf(samples[:, dims : dims + self.prior_dims[i]])
+            log_prior += prior.logpdf(
+                samples[:, dims : dims + self.prior_dims[i]]
+            ).flatten()
             dims += self.prior_dims[i]
         return log_prior

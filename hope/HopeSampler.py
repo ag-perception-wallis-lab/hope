@@ -58,6 +58,7 @@ class HopeSampler:
         )
         self.sampled = []
         self.responses = []
+        self.seed = seed
 
     def get_next_stimulus(self):
         """Computes and returns the stimulus in the current stimulus pool that
@@ -78,7 +79,9 @@ class HopeSampler:
         """
         if self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials:
             self.X = self.stimulus_pool.copy()
-        probs = self.psychometric_model.psychometric_function(self.X, self.particles)
+        probs = self.psychometric_model.psychometric_function(
+            self.X, self.particles.locations
+        )
         next = np.argmax(mutual_information(probs))
         stimulus = self.X[next]
         self.X = np.delete(self.X, next, axis=0)
@@ -118,7 +121,9 @@ class HopeSampler:
         acceptance_probs = []
         proposal_width_factor = 1.0
         # do some mcmc steps (rule to be implemented) TODO
+        print("Starting MH steps")
         while j < self.n_mh:
+            print(f"MH step {j + 1}/{self.n_mh}")
             if self.seed is not None:
                 self.seed = self.seed + j
             if self.psychometric_model.trans_prop is not None:
@@ -172,7 +177,7 @@ class HopeSampler:
         with open(path, "wb") as f:
             pickle.dump(self, f)
 
-    @classmethod
-    def load(cls, path: str) -> HopeSampler:
-        with open(path, "rb") as f:
-            return pickle.load(f)
+    # @classmethod
+    # def load(cls, path: str) -> HopeSampler:
+    #     with open(path, "rb") as f:
+    #         return pickle.load(f)

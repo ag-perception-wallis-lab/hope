@@ -101,7 +101,8 @@ def importance_reweighting(
     if np.isscalar(data):
         data = np.array([data])
         data = np.expand_dims(data, axis=1)
-    updated_weights = weights * likelihood_fn(data, locations)
+    X, responses = data
+    updated_weights = weights * likelihood_fn(X, responses, locations)
     updated_weights /= np.sum(updated_weights)
     return updated_weights
 
