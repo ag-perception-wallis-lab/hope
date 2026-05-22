@@ -99,29 +99,12 @@ class BinaryPsychometricModel(PsychometricModel):
         p = self.psychometric_function(X, fct_params)
         log_likelihoods = np.sum(
             np.log(np.where(responses, p, 1) * np.where(1 - responses, 1 - p, 1)),
-            axis=2,
+            axis=1,
         ).flatten()
         return log_likelihoods
 
     def sample_prior(self, n_samples) -> np.ndarray:
         prior_samples = np.empty((n_samples, sum(self.prior_dims)))
-        # for i, prior in enumerate(self.priors.values()):
-        #     if i != len(self.priors) - 1:
-        #         new_samples = prior.rvs(size=n_samples, random_state=self.seed)
-        #         if self.trans_prop:
-        #             new_samples = new_samples.clip(
-        #                 self.trans_prop.lower_bounds[i], self.trans_prop.upper_bounds[i]
-        #             )
-        #         prior_samples = prior_samples + [new_samples.tolist()]
-        #         only_one = False
-        #     else:
-        #         if only_one:
-        #             prior_samples = prior.rvs(size=n_samples, random_state=self.seed)
-        #             break
-        #         prior_samples = np.array(prior_samples).T
-        #         prior_samples = np.hstack(
-        #             [prior_samples, prior.rvs(size=n_samples, random_state=self.seed)]
-        #         )
         if self.trans_prop:
             bounded_dims = self.trans_prop.transformed_dimensions
         current_dim = 0

@@ -58,7 +58,7 @@ class HopeSampler:
         )
         self.sampled = []
         self.responses = []
-        self.seed = seed
+
 
     def get_next_stimulus(self):
         """Computes and returns the stimulus in the current stimulus pool that
@@ -109,11 +109,10 @@ class HopeSampler:
             self.psychometric_model.likelihood,
         )
         self.particles.importance_resampling(method="stratified", rng=self.rng)
-
         def unnormalized_log_posterior(particle_locations):
             log_prior = self.psychometric_model.log_prior(particle_locations)
             ll = self.psychometric_model.log_likelihood(
-                np.array(self.sampled), np.array(self.responses).T, particle_locations
+                np.array(self.sampled), np.array([self.responses]), particle_locations
             )
             return log_prior + ll
 
@@ -121,11 +120,9 @@ class HopeSampler:
         acceptance_probs = []
         proposal_width_factor = 1.0
         # do some mcmc steps (rule to be implemented) TODO
-        print("Starting MH steps")
+        logger.debug("Starting MH steps")
         while j < self.n_mh:
-            print(f"MH step {j + 1}/{self.n_mh}")
-            if self.seed is not None:
-                self.seed = self.seed + j
+            logger.debug(f"MH step {j + 1}/{self.n_mh}")
             if self.psychometric_model.trans_prop is not None:
                 if j < 5:
                     proposal_vars = proposal_width_factor * rule_of_thumb_bandwidths(
