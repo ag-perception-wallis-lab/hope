@@ -14,6 +14,7 @@ from hope.sequential_monte_carlo import (
 class PsychometricModel(ABC):
     psychometric_function: Callable
     priors: Dict[str, Union[rv_frozen, multi_rv_frozen]]
+    prior_dims: list[int]
     trans_prop: Optional[IntervalTransformIndependentGaussianProposer]
     bounds: Optional[Dict[str, tuple]]
     seed: Optional[int]
@@ -26,13 +27,38 @@ class PsychometricModel(ABC):
     def log_likelihood(self, X, responses, fct_params):
         pass
 
-    @abstractmethod
     def sample_prior(self, n_samples) -> np.ndarray:
-        pass
+        prior_samples = np.empty((n_samples, sum(self.prior_dims)))
+        if self.trans_prop:
+            bounded_dims = self.trans_prop.transformed_dimensions
+        current_dim = 0
+        bounded_count = 0
+        for i, prior in enumerate(self.priors.values()):
+            new_samples = prior.rvs(size=n_samples, random_state=self.seed)
+            current_dim += self.prior_dims[i]
+            if current_dim in bounded_dims and self.trans_prop is not None:
+                new_samples = new_samples.clip(
+                    self.trans_prop.lower_bounds[bounded_count],
+                    self.trans_prop.upper_bounds[bounded_count],
+                )
+                bounded_count += 1
+            prior_samples[:, current_dim - self.prior_dims[i] : current_dim] = (
+                new_samples.reshape(n_samples, -1)
+                if self.prior_dims[i] > 1
+                else new_samples[:, np.newaxis]
+            )
 
-    @abstractmethod
+        return prior_samples
+
     def log_prior(self, samples):
-        pass
+        log_prior = np.zeros(samples.shape[0])
+        dims = 0
+        for i, prior in enumerate(self.priors.values()):
+            log_prior += prior.logpdf(
+                samples[:, dims : dims + self.prior_dims[i]]
+            ).flatten()
+            dims += self.prior_dims[i]
+        return log_prior
 
 
 class BinaryPsychometricModel(PsychometricModel):
@@ -102,36 +128,3 @@ class BinaryPsychometricModel(PsychometricModel):
             axis=1,
         ).flatten()
         return log_likelihoods
-
-    def sample_prior(self, n_samples) -> np.ndarray:
-        prior_samples = np.empty((n_samples, sum(self.prior_dims)))
-        if self.trans_prop:
-            bounded_dims = self.trans_prop.transformed_dimensions
-        current_dim = 0
-        bounded_count = 0
-        for i, prior in enumerate(self.priors.values()):
-            new_samples = prior.rvs(size=n_samples, random_state=self.seed)
-            current_dim += self.prior_dims[i]
-            if current_dim in bounded_dims and self.trans_prop is not None:
-                new_samples = new_samples.clip(
-                    self.trans_prop.lower_bounds[bounded_count],
-                    self.trans_prop.upper_bounds[bounded_count],
-                )
-                bounded_count += 1
-            prior_samples[:, current_dim - self.prior_dims[i] : current_dim] = (
-                new_samples.reshape(n_samples, -1)
-                if self.prior_dims[i] > 1
-                else new_samples[:, np.newaxis]
-            )
-
-        return prior_samples
-
-    def log_prior(self, samples):
-        log_prior = np.zeros(samples.shape[0])
-        dims = 0
-        for i, prior in enumerate(self.priors.values()):
-            log_prior += prior.logpdf(
-                samples[:, dims : dims + self.prior_dims[i]]
-            ).flatten()
-            dims += self.prior_dims[i]
-        return log_prior
