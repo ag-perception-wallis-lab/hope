@@ -7,4 +7,4 @@ def bounded_sigmoid(x, lower_bound, upper_bound):
 
 
 def bounded_logit(x, lower_bound, upper_bound):
-    return np.log((x - lower_bound + 1e-50) / (upper_bound - x + 1e-50))
+    return ((x - lower_bound) / (upper_bound - x + 1e-25)) + 1e-25

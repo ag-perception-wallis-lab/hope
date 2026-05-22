@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
+import parso
 from scipy.stats._distn_infrastructure import rv_frozen
 from scipy.stats._multivariate import multi_rv_frozen
 
@@ -88,7 +89,7 @@ class BinaryPsychometricModel(PsychometricModel):
     def likelihood(self, X, responses, fct_params):
         p = self.psychometric_function(X, fct_params)
         likelihoods = np.prod(
-            (np.power(p, responses) * np.power(1 - p, 1 - responses)), axis=0
+            (np.power(p, responses) * np.power(1 - p, 1 - responses)), axis=1
         )
         likelihoods[likelihoods > 1] = 1
         likelihoods[likelihoods < 0] = 0
