@@ -58,6 +58,7 @@ class HopeSampler:
         )
         self.sampled = []
         self.responses = []
+        self.proposal_width_factor = 1.0
 
 
     def get_next_stimulus(self):
@@ -112,25 +113,30 @@ class HopeSampler:
         def unnormalized_log_posterior(particle_locations):
             log_prior = self.psychometric_model.log_prior(particle_locations)
             ll = self.psychometric_model.log_likelihood(
-                np.array(self.sampled), np.array([self.responses]), particle_locations
+                np.array(self.sampled),
+                np.array(self.responses),
+                particle_locations,
             )
             return log_prior + ll
 
         j = 0
         acceptance_probs = []
-        proposal_width_factor = 1.0
         # do some mcmc steps (rule to be implemented) TODO
         logger.debug("Starting MH steps")
-        while j < self.n_mh:
+        for j in range(self.n_mh):
             logger.debug(f"MH step {j + 1}/{self.n_mh}")
             if self.psychometric_model.trans_prop is not None:
                 if j < 5:
-                    proposal_vars = proposal_width_factor * rule_of_thumb_bandwidths(
-                        self.psychometric_model.trans_prop.transform(
-                            self.particles.locations
-                        ),
-                        effective_n=self.particles.n_particles
-                        - self.particles.duplicate_ratio * self.particles.n_particles,
+                    proposal_vars = (
+                        self.proposal_width_factor
+                        * rule_of_thumb_bandwidths(
+                            self.psychometric_model.trans_prop.transform(
+                                self.particles.locations
+                            ),
+                            effective_n=self.particles.n_particles
+                            - self.particles.duplicate_ratio
+                            * self.particles.n_particles,
+                        )
                     )
                     self.psychometric_model.trans_prop.proposal_vars = proposal_vars
                 (
@@ -143,12 +149,20 @@ class HopeSampler:
                     trans_proposer=self.psychometric_model.trans_prop,
                     rng=self.rng,
                 )
+                logger.debug("duplicate ratio ", self.particles.duplicate_ratio)
+                logger.debug("proposal_width_factor:", self.proposal_width_factor)
+                logger.debug("proposal_vars:", proposal_vars)
+                logger.debug("acceptance_probs:", acceptance_prob)
             else:
                 if j < 5:
-                    proposal_vars = proposal_width_factor * rule_of_thumb_bandwidths(
-                        self.particles.locations,
-                        effective_n=self.particles.n_particles
-                        - self.particles.duplicate_ratio * self.particles.n_particles,
+                    proposal_vars = (
+                        self.proposal_width_factor
+                        * rule_of_thumb_bandwidths(
+                            self.particles.locations,
+                            effective_n=self.particles.n_particles
+                            - self.particles.duplicate_ratio
+                            * self.particles.n_particles,
+                        )
                     )
                 (
                     new_locations,
@@ -161,13 +175,16 @@ class HopeSampler:
                     proposal_vars=proposal_vars,
                     rng=self.rng,
                 )
+                logger.debug("duplicate ratio ", self.particles.duplicate_ratio)
+                logger.debug("proposal_width_factor:", self.proposal_width_factor)
+                logger.debug("proposal_vars:", proposal_vars)
+                logger.debug("acceptance_probs:", acceptance_prob)
             # todo when are we doing mh or h steps, document properly
             acceptance_probs.append(acceptance_prob)
             self.particles.update_locations(new_locations, indices_of_updated_locations)
-            j += 1
         # dynamically adapt proposal width
-        proposal_width_factor = adapt_proposal_width_factor(
-            proposal_width_factor, acceptance_probs
+        self.proposal_width_factor = adapt_proposal_width_factor(
+            self.proposal_width_factor, acceptance_probs
         )
 
     def save(self, path: str) -> None:

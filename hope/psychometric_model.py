@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
-import parso
 from scipy.stats._distn_infrastructure import rv_frozen
 from scipy.stats._multivariate import multi_rv_frozen
 
@@ -15,7 +14,7 @@ class PsychometricModel(ABC):
     psychometric_function: Callable
     priors: Dict[str, Union[rv_frozen, multi_rv_frozen]]
     prior_dims: list[int]
-    trans_prop: Optional[IntervalTransformIndependentGaussianProposer]
+    trans_prop: Optional[IntervalTransformIndependentGaussianProposer] = None
     bounds: Optional[Dict[str, tuple]]
     seed: Optional[int]
 
@@ -36,7 +35,7 @@ class PsychometricModel(ABC):
         for i, prior in enumerate(self.priors.values()):
             new_samples = prior.rvs(size=n_samples, random_state=self.seed)
             current_dim += self.prior_dims[i]
-            if current_dim in bounded_dims and self.trans_prop is not None:
+            if self.trans_prop is not None and current_dim in bounded_dims:
                 new_samples = new_samples.clip(
                     self.trans_prop.lower_bounds[bounded_count],
                     self.trans_prop.upper_bounds[bounded_count],
@@ -123,8 +122,9 @@ class BinaryPsychometricModel(PsychometricModel):
 
     def log_likelihood(self, X, responses, fct_params):
         p = self.psychometric_function(X, fct_params)
+        p = np.clip(p, 0 + 1e-100, 1)
         log_likelihoods = np.sum(
             np.log(np.where(responses, p, 1) * np.where(1 - responses, 1 - p, 1)),
             axis=1,
-        ).flatten()
+        )
         return log_likelihoods
