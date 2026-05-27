@@ -41,3 +41,6 @@ for i in range(5):
     print("Simulated response:", response)
     sampler.update_posterior(stimulus, response)
 # %%
+sampler.save("hope_sampler.pkl")
+# %%
+loaded_sampler = HopeSampler.load("hope_sampler.pkl")

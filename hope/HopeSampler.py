@@ -20,7 +20,6 @@ __all__ = ["HopeSampler"]
 logger = logging.getLogger(__file__)
 
 
-# TODO: Think about loading previous HopeSampler
 class HopeSampler:
     def __init__(
         self,
@@ -30,7 +29,7 @@ class HopeSampler:
         n_mh: int,
         proposal_dist=None,  # TODO document default proposal distribution
         replace_after_trials: int = 1,
-        seed=None,  # TODO implement seeding
+        seed=None,
     ):
         # TODO docstring
         self.rng = np.random.default_rng(seed)
@@ -51,7 +50,6 @@ class HopeSampler:
         else:
             self.replace_after_trials = replace_after_trials
 
-        # TODO: initial particles should not be here anymore now?
         self.n_particles = n_particles
         self.particles = WeightedParticles(
             np.array(self.psychometric_model.sample_prior(n_particles))
@@ -191,7 +189,7 @@ class HopeSampler:
         with open(path, "wb") as f:
             pickle.dump(self, f)
 
-    # @classmethod
-    # def load(cls, path: str) -> HopeSampler:
-    #     with open(path, "rb") as f:
-    #         return pickle.load(f)
+    @staticmethod
+    def load(path: str) -> "HopeSampler":
+        with open(path, "rb") as f:
+            return pickle.load(f)
