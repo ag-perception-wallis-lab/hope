@@ -1,7 +1,9 @@
 import logging
 import pickle
+from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 from hope.psychometric_model import PsychometricModel
 
@@ -17,36 +19,79 @@ from .sequential_monte_carlo import (
 )
 
 __all__ = ["HopeSampler"]
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class HopeSampler:
+    """Sampler for adaptive psychometric estimation.
+
+    Maintains a particle approximation of the posterior over psychometric
+    function parameters and selects stimuli that maximise expected information gain
+    (i.e. minimise expected posterior entropy). After each trial the posterior
+    is updated via importance reweighting, stratified resampling, and a
+    configurable number of Metropolis (-Hastings) steps.
+
+    Parameters
+    ----------
+    psychometric_model : PsychometricModel
+        Model defining the psychometric function, priors, and (log-)likelihood.
+    stimulus_pool : ndarray of shape (n_stimuli, n_features)
+        Full set of candidate stimuli from which the next stimulus is selected.
+    n_particles : int
+        Number of particles used to represent the posterior.
+    n_mh : int
+        Number of Metropolis (-Hastings) steps performed after each posterior
+        update.
+    replace_after_trials : int
+        Number of consecutive trials drawn without replacement before the full
+        stimulus pool is restored. Set to 1 (default) to always sample with
+        replacement. Clamped to ``stimulus_pool.shape[0]`` if larger.
+    seed : int or None
+        Seed for the internal ``numpy.random.Generator``.
+
+    Attributes
+    ----------
+    particles : WeightedParticles
+        Current particle approximation of the posterior, initialised from the
+        prior.
+    sampled : list[ndarray]
+        Stimuli presented so far, in trial order.
+    responses : list[float]
+        Responses recorded so far, in trial order.
+    proposal_width_factor : float
+        Multiplicative scaling factor applied to rule-of-thumb bandwidths,
+        adapted dynamically to target a reasonable MH acceptance rate.
+    X : ndarray of shape (n_stimuli_remaining, n_features)
+        Current stimulus pool from which the next stimulus is selected.
+    """
+
+    sampled: list[NDArray[np.float64]]
+    responses: list[float]
+
     def __init__(
         self,
         psychometric_model: PsychometricModel,
-        stimulus_pool: np.ndarray,
+        stimulus_pool: NDArray[np.float64],
         n_particles: int,
         n_mh: int,
-        proposal_dist=None,  # TODO document default proposal distribution
         replace_after_trials: int = 1,
-        seed=None,
+        seed: Optional[int] = None,
     ):
-        # TODO docstring
+
         self.rng = np.random.default_rng(seed)
         self.psychometric_model = psychometric_model
-        self.proposal_dist = proposal_dist
         self.n_mh = n_mh
         self.stimulus_pool = stimulus_pool  # all stimuli
         self.X = stimulus_pool  # current stimulus pool; might change if we sample without replacement
         if replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
-            warning_str = (
-                "The value for replace_after_trials is bigger than the"
+            logger.warning(
+                "The value for replace_after_trials is bigger than the "
                 "stimulus_pool size. To avoid drawing from an empty "
                 "stimulus pool, replace_after_trials was set to the "
                 "stimulus_pool size."
             )
-            logger.warning(warning_str)
+
         else:
             self.replace_after_trials = replace_after_trials
 
@@ -58,8 +103,7 @@ class HopeSampler:
         self.responses = []
         self.proposal_width_factor = 1.0
 
-
-    def get_next_stimulus(self):
+    def get_next_stimulus(self) -> NDArray[np.float64]:
         """Computes and returns the stimulus in the current stimulus pool that
         minimizes the expected entropy.
 
@@ -73,7 +117,7 @@ class HopeSampler:
 
         Returns
         -------
-        np.ndarray
+        ndarray of shape (n_features,)
             Stimulus in the current stimulus pool, that minimizes the expected entropy.
         """
         if self.stimulus_pool.shape[0] - self.X.shape[0] >= self.replace_after_trials:
@@ -86,19 +130,50 @@ class HopeSampler:
         self.X = np.delete(self.X, next, axis=0)
         return stimulus
 
-    def update_stimulus_pool(self, new_stimulus_pool):
+    def update_stimulus_pool(self, new_stimulus_pool: NDArray[np.float64]) -> None:
+        """Replace the stimulus pool with a new set of stimuli.
+
+        Parameters
+        ----------
+        new_stimulus_pool : ndarray of shape (n_stimuli, n_features)
+            New stimulus pool.
+        """
+
         self.stimulus_pool = new_stimulus_pool
         if self.replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
-            warning_str = (
-                "The value for replace_after_trials is bigger than the"
+            logger.warning(
+                "The value for replace_after_trials is bigger than the "
                 "stimulus_pool size. To avoid drawing from an empty "
                 "stimulus pool, replace_after_trials was set to the "
                 "stimulus_pool size."
             )
-            logger.warning(warning_str)
 
-    def update_posterior(self, stimulus, response):
+    def update_posterior(self, stimulus, response) -> None:
+        """Update the particle posterior given a new stimulus–response pair.
+
+        Appends the trial to the history, then performs:
+
+        1. Importance reweighting using the single-trial likelihood.
+        2. Particle resampling.
+        3. ``n_mh`` Metropolis (-Hastings) steps evaluating the full posterior.
+           Proposal variances are set via rule-of-thumb bandwidths for the
+           first five steps and held fixed thereafter.
+        4. Dynamic adaptation of ``proposal_width_factor`` based on the
+           acceptance probabilities observed in step 3.
+
+        If ``psychometric_model.trans_prop`` is set, an interval-transform MH
+        step is used; otherwise a standard Metropolis step with an independent
+        Gaussian proposal is used.
+
+        Parameters
+        ----------
+        stimulus : ndarray of shape (n_features,)
+            The stimulus that was presented.
+        response : float
+            The observed response (e.g. 0 or 1 for binary models).
+        """
+
         self.sampled.append(stimulus)
         self.responses.append(response)
         self.particles.weights = importance_reweighting(
@@ -108,7 +183,10 @@ class HopeSampler:
             self.psychometric_model.likelihood,
         )
         self.particles.importance_resampling(method="stratified", rng=self.rng)
-        def unnormalized_log_posterior(particle_locations):
+
+        def unnormalized_log_posterior(
+            particle_locations: NDArray[np.float64],
+        ) -> NDArray[np.float64]:
             log_prior = self.psychometric_model.log_prior(particle_locations)
             ll = self.psychometric_model.log_likelihood(
                 np.array(self.sampled),
@@ -118,7 +196,7 @@ class HopeSampler:
             return log_prior + ll
 
         j = 0
-        acceptance_probs = []
+        acceptance_probs: list[float] = []
         # do some mcmc steps (rule to be implemented) TODO
         logger.debug("Starting MH steps")
         for j in range(self.n_mh):
@@ -177,7 +255,6 @@ class HopeSampler:
                 logger.debug("proposal_width_factor:", self.proposal_width_factor)
                 logger.debug("proposal_vars:", proposal_vars)
                 logger.debug("acceptance_probs:", acceptance_prob)
-            # todo when are we doing mh or h steps, document properly
             acceptance_probs.append(acceptance_prob)
             self.particles.update_locations(new_locations, indices_of_updated_locations)
         # dynamically adapt proposal width
@@ -186,10 +263,29 @@ class HopeSampler:
         )
 
     def save(self, path: str) -> None:
+        """Save the sampler to disk using pickle.
+
+        Parameters
+        ----------
+        path : str
+            Destination file path.
+        """
         with open(path, "wb") as f:
             pickle.dump(self, f)
 
     @staticmethod
     def load(path: str) -> "HopeSampler":
+        """Load an existing sampler previously saved with ``save``.
+
+        Parameters
+        ----------
+        path : str
+            Path to the pickle file.
+
+        Returns
+        -------
+        HopeSampler
+            The restored sampler instance.
+        """
         with open(path, "rb") as f:
             return pickle.load(f)
