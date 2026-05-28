@@ -4,13 +4,9 @@ from .metropolis_hastings import (
     metropolis_hastings_step,
     metropolis_step,
     propose_independent_gaussian,
-    propose_isotropic_gaussian,
     rule_of_thumb_bandwidths,
 )
 from .sequential_monte_carlo import (
-    gaussian_regression_likelihood,
-    gaussian_regression_likelihood_importance_reweighting_wrapper,
-    importance_resampling,
     importance_reweighting,
     mutual_information,
     n_eff,
