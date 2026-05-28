@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import expit
 
+# TODO let us document this after we have added more psychometric functions, so that we can have a more general documentation for all of them.
 
 def logistic_regression_lapses(X, fct_params):
     if X.size == 1 and X.ndim <= 1:
