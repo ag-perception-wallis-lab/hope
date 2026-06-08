@@ -51,13 +51,28 @@ class HopeSampler:
 
     Attributes
     ----------
+    n_mh : int
+        Number of Metropolis (-Hastings) steps performed after each posterior
+        update.
+    n_particles : int
+        Number of particles used to represent the posterior.
     particles : WeightedParticles
         Current particle approximation of the posterior, initialised from the
         prior.
+    psychometric_model : PsychometricModel
+        The psychometric model provided at initialisation.
     sampled : list[ndarray]
         Stimuli presented so far, in trial order.
+    stimulus_pool : ndarray of shape (n_stimuli, n_features)
+        Full set of candidate stimuli, refills X during replacement.
     responses : list[float]
         Responses recorded so far, in trial order.
+    replace_after_trials : int
+        Number of consecutive trials drawn without replacement before the full
+        stimulus pool is restored. Set to 1 (default) to always sample with
+        replacement. Clamped to ``stimulus_pool.shape[0]`` if larger.
+    rng : numpy.random.Generator
+        Internal random number generator, seeded from the constructor argument.
     proposal_width_factor : float
         Multiplicative scaling factor applied to rule-of-thumb bandwidths,
         adapted dynamically to target a reasonable MH acceptance rate.
