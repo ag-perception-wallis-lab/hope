@@ -87,8 +87,8 @@ class HopeSampler:
         self,
         psychometric_model: PsychometricModel,
         stimulus_pool: NDArray[np.float64],
-        n_particles: int,
-        n_mh: int,
+        n_particles: int = 1000,
+        n_mh: int = 5,
         replace_after_trials: int = 1,
         seed: Optional[int] = None,
     ):
