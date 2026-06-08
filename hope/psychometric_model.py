@@ -122,13 +122,13 @@ class BinaryPsychometricModel(PsychometricModel):
 
     Assumes a Bernoulli observation model: the probability of a '1' response is
     given by ``psychometric_function(x, fct_params)``. Bounded parameters are
-    handled via an transformed proposal distribution, which is automatically initialized based on the provided bounds and prior supports.
+    handled via a transformed proposal distribution, which is automatically initialized based on the provided bounds and prior supports.
 
     Parameters
     ----------
     psychometric_function : Callable
         A function ``f(X, fct_params) -> ndarray of shape (n_trials, n_particles)``
-        that returns the probability of a '1' response for each (trial, particle)
+        that returns the probability of a '1' response for each (stimulus, particle)
         combination.
     priors : Dict[str, rv_frozen]
         Named priors for each psychometric function parameter. Keys are
@@ -253,8 +253,8 @@ class BinaryPsychometricModel(PsychometricModel):
     ) -> NDArray[np.float64]:
         """Compute the summed log-likelihood of all trials for each particle.
 
-        Evaluates the Bernoulli log-likelihood for every (trial, particle) pair
-        and sums across trials. Probabilities are clipped away from zero before
+        Evaluates the Bernoulli log-likelihood for every (stimulus, particle) pair
+        and sums across stimuli. Probabilities are clipped away from zero before
         taking logarithms to avoid ``-inf`` values.
 
         Parameters
