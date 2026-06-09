@@ -3,7 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/psihope.svg)](https://badge.fury.io/py/psihope)
 
-TODO
+HOPE (High-dimensional Online Particle Estimation) is a Python package for adaptive psychophysics experiments. 
+
+Given a parametric psychometric function and a discrete stimulus pool, it selects the next stimulus with maximum expected information gain. It uses a posterior approximation based on a combined particle filtering–MCMC approach. This is fast enough for real-time use within the inter-stimulus interval for feature spaces up to 50 dimensions, typically under one second on standard hardware and with a stimulus pool of 10,000 stimuli. The package includes a set of predefined psychometric functions, but users can also supply their own. It is designed to integrate with PsychoPy experiments.
+
 
 ## Installation
 
