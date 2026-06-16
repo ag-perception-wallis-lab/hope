@@ -97,7 +97,7 @@ class HopeSampler:
         self.psychometric_model = psychometric_model
         self.n_mh = n_mh
         self.stimulus_pool = stimulus_pool  # all stimuli
-        self.X = stimulus_pool  # current stimulus pool; might change if we sample without replacement
+        self.X = self.stimulus_pool.copy()  # current stimulus pool; might change if we sample without replacement
         if replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
             logger.warning(
@@ -148,13 +148,18 @@ class HopeSampler:
     def update_stimulus_pool(self, new_stimulus_pool: NDArray[np.float64]) -> None:
         """Replace the stimulus pool with a new set of stimuli.
 
+        The old stimulus pool is overwritten with a new set of stimuli. If
+        `replace_after_trials` is bigger than 1, the counter for sampling without
+        replacement starts anew with the update.
+
         Parameters
         ----------
         new_stimulus_pool : ndarray of shape (n_stimuli, n_features)
             New stimulus pool.
         """
-
         self.stimulus_pool = new_stimulus_pool
+        self.X = self.stimulus_pool.copy()
+
         if self.replace_after_trials > self.stimulus_pool.shape[0]:
             self.replace_after_trials = self.stimulus_pool.shape[0]
             logger.warning(
