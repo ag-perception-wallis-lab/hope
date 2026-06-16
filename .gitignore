@@ -11,3 +11,6 @@ wheels/
 
 # MacOS file storage
 .DS_Store
+
+# pickle files
+*.pkl
