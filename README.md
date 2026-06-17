@@ -1,7 +1,8 @@
 # High-dimensional Online Particle Estimation (HOPE) for psychophysical experiments
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PyPI version](https://badge.fury.io/py/psihope.svg)](https://badge.fury.io/py/psihope)
+[![PyPI - Version](https://img.shields.io/pypi/v/psihope)](https://pypi.org/project/psihope/)
+[![DOI](https://zenodo.org/badge/1242238167.svg)](https://doi.org/10.5281/zenodo.20727919)
 
 HOPE (High-dimensional Online Particle Estimation) is a Python package for adaptive psychophysics experiments. 
 
