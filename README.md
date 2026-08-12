@@ -8,6 +8,7 @@ HOPE (High-dimensional Online Particle Estimation) is a Python package for adapt
 
 Given a parametric psychometric function and a discrete stimulus pool, it selects the next stimulus with maximum expected information gain. It uses a posterior approximation based on a combined particle filtering–MCMC approach. This is fast enough for real-time use within the inter-stimulus interval for feature spaces up to 50 dimensions, typically under one second on standard hardware and with a stimulus pool of 10,000 stimuli. The package includes a set of predefined psychometric functions, but users can also supply their own. It is designed to integrate with PsychoPy experiments.
 
+A preprint of the paper describing and evaluating the method in simulations and a real experiment is available on [bioRxiv](https://doi.org/10.64898/2026.08.03.741989).
 
 ## Installation
 
@@ -59,4 +60,16 @@ For more advanced usage and more explanations refer to the [examples](examples/)
 
 ## Citation
 
-TODO
+If you use our tool, please cite our preprint:
+
+```bibtex
+@article{turon2026adaptive,
+	author = {Turon, Rabea and Reining, Lars C. and Hummel, Philipp A. and Schmittwilken, Lynn and Lind, Christine and Yu, Angela J. and Rothkopf, Constantin A. and J{\"a}kel, Frank and Wallis, Thomas S. A.},
+	title = {Adaptive experiments in high-dimensional feature spaces: A particle filtering approach},
+	year = {2026},
+	doi = {10.64898/2026.08.03.741989},
+	url = {https://www.biorxiv.org/content/early/2026/08/07/2026.08.03.741989},
+	eprint = {https://www.biorxiv.org/content/early/2026/08/07/2026.08.03.741989.full.pdf},
+	journal = {bioRxiv}
+}
+```
