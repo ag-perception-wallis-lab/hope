@@ -24,6 +24,13 @@ dev = [
     "ruff>=0.15.13",
 ]
 
+reproducibility = [
+    "scikit-learn==1.7.2",
+    "matplotlib==3.10.9",
+    "pandas==2.3.3",
+    "numpyro==0.19.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
