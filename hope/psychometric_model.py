@@ -79,19 +79,18 @@ class PsychometricModel(ABC):
         bounded_count = 0
         for i, prior in enumerate(self.priors.values()):
             new_samples = prior.rvs(size=n_samples, random_state=self.seed)
-            current_dim += self.prior_dims[i]
             if self.trans_prop is not None and current_dim in bounded_dims:
                 new_samples = new_samples.clip(
                     self.trans_prop.lower_bounds[bounded_count],
                     self.trans_prop.upper_bounds[bounded_count],
                 )
                 bounded_count += 1
-            prior_samples[:, current_dim - self.prior_dims[i] : current_dim] = (
+            prior_samples[:, current_dim : current_dim + self.prior_dims[i]] = (
                 new_samples.reshape(n_samples, -1)
                 if self.prior_dims[i] > 1
                 else new_samples[:, np.newaxis]
             )
-
+            current_dim += self.prior_dims[i]
         return prior_samples
 
     def log_prior(self, fct_params: NDArray[np.float64]) -> NDArray[np.float64]:
