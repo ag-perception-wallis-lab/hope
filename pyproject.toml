@@ -1,6 +1,6 @@
 [project]
 name = "psihope"
-version = "0.1.0"
+version = "0.1.1"
 description = "High-dimensional Online Particle Estimation (HOPE) for psychophysical experiments"
 readme = "README.md"
 requires-python = ">=3.10"
