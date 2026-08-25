@@ -20,6 +20,7 @@ import numpyro
 import numpyro.distributions as npdist
 import jax.numpy as jnp
 import jax.nn as jnn
+import sys
 
 
 def mcmc_approximation_numpyro(
@@ -198,3 +199,17 @@ def mcmc_log_reg_lapse_model(
             npdist.Bernoulli(probs=response_probs, validate_args=True),
             obs=responses,
         )
+
+
+def in_interactive_mode() -> bool:
+    """True if running in a Jupyter/IPython session or interactive Python shell.
+    
+    If not in interactive shell, plots should be saved instead of shown.
+    """
+    try:
+        from IPython import get_ipython
+        if get_ipython() is not None:
+            return True
+    except ImportError:
+        pass
+    return hasattr(sys, "ps1")  # True in a plain interactive python shell
