@@ -14,3 +14,7 @@ wheels/
 
 # pickle files
 *.pkl
+
+# reproducibility directories
+validation/aam_data/
+validation/results/
