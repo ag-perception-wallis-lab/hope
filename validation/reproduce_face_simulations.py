@@ -27,8 +27,8 @@ DATA_DIR = Path(__file__).parent / "aam_data"
 seed = 42
 np.random.seed(seed)
 
-n_hope = 30
-n_uniform = 90
+n_hope = 3000
+n_uniform = 9000
 
 priors = {
     "lower_lapse": stats.beta(1, 30),
@@ -71,13 +71,7 @@ hope_sampler = HopeSampler(
     n_mh=5,
     seed=seed,
 )
-uniform_sampler = HopeSampler(
-    psychometric_model=psychometric_model,
-    stimulus_pool=stimulus_pool,
-    n_particles=1000,
-    n_mh=5,
-    seed=seed,
-)
+uniform_samples = {"sampled": [], "responses": []}
 
 entropy_hope = []
 entropy_uniform = []
@@ -155,11 +149,12 @@ for i in tqdm(range(n_uniform), desc="Running uniform simulations"):
         1,
         psychometric_model.psychometric_function(stimulus_uniform, gt_parameters),
     )[0][0]
-    uniform_sampler.update_posterior(stimulus_uniform, response_uniform)
+    uniform_samples["sampled"].append(stimulus_uniform)
+    uniform_samples["responses"].append(response_uniform)
     if i in monitored_trials:
         posterior_uniform = compute_posterior(
-            np.array(uniform_sampler.sampled),
-            np.array(uniform_sampler.responses),
+            np.array(uniform_samples["sampled"]),
+            np.array(uniform_samples["responses"]),
             n_mcmc_samples_per_step=n_mcmc_samples_per_step,
             mcmc_log_reg_lapse_model=mcmc_log_reg_lapse_model,
             priors=priors_list,

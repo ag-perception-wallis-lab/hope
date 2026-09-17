@@ -38,7 +38,7 @@ for i, n_dims in enumerate(dims):
         continue
 
     for j in range(n_runs):
-        run_seed = seed + i + j
+        run_seed = seed + i * n_runs + j
         rng = np.random.default_rng(run_seed)
         stimulus_pool = rng.uniform(-5, 5, size=(10000, n_dims))
 
