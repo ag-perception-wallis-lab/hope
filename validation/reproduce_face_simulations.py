@@ -1,3 +1,8 @@
+'''
+This script runs the 15D face experiment simulations reported in 
+https://www.biorxiv.org/content/10.64898/2026.08.03.741989v1 and plots the resulting
+entropy of HOPE vs baseline sampling. 
+'''
 # %%
 import numpy as np
 from scipy import stats

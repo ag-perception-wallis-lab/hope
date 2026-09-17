@@ -1,3 +1,8 @@
+''' 
+This script runs simulations of experiments with a HOPE sampler and reports the time
+needed for update steps. It tests different dimensionalities (see the `dims` variable)
+and for each runs several times (`n_runs`) with a different seed.
+'''
 # %%
 import numpy as np
 from scipy import stats
